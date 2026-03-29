@@ -81,7 +81,7 @@ This project provides a centralized coin-operated internet cafe (PISONET) manage
 ### Step 3: Install Python and Dependencies
 1. Install Python 3 and pip:
    ```
-   apt install python3 python3-pip python3-venv -y
+   apt install python3 python3-pip python3.13-venv -y
    ```
 2. Create a virtual environment for the project:
    ```
