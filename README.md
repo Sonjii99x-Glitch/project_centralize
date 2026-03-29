@@ -80,8 +80,8 @@ A complete coin-operated internet cafe management system designed for Orange Pi 
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-repo/pisonet.git
-   cd pisonet
+   git clone https://github.com/Sonjii99x-Glitch/project_centralize.git
+   cd project_centralize
    ```
 
 2. **Create virtual environment:**
