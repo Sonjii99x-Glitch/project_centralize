@@ -48,23 +48,33 @@ A complete coin-operated internet cafe management system designed for Orange Pi 
 
 1. **Prepare your Orange Pi One:**
    ```bash
-   # Update system
-   sudo apt update && sudo apt upgrade -y
-
-   # Install required packages
-   sudo apt install -y python3 python3-pip python3-venv git curl wget
+   # Fresh Armbian 26.2.1 installation
+   # Enable SSH and set root password
+   # Connect to your network
    ```
 
 2. **Run the automated deployment script:**
    ```bash
    # Download and run deployment script
-   curl -fsSL https://raw.githubusercontent.com/your-repo/pisonet/main/deploy.sh | bash
+   curl -fsSL https://raw.githubusercontent.com/Sonjii99x-Glitch/project_centralize/main/deploy.sh | bash -s <host> <ssh_user> <ssh_pass> <admin_user> <admin_pass>
+   
+   # Example:
+   curl -fsSL https://raw.githubusercontent.com/Sonjii99x-Glitch/project_centralize/main/deploy.sh | bash -s 192.168.1.100 root 1234 pisonet pisonet123
    ```
 
-3. **Access the setup wizard:**
-   - Open `http://[orange-pi-ip]:5000/setup` in your browser
+3. **The script will:**
+   - ✅ Verify system compatibility (Armbian 26.2.1, kernel 6.12.74)
+   - ✅ Check internet connectivity and required packages
+   - ✅ Create dedicated admin user (not root)
+   - ✅ Install all dependencies and PISONET software
+   - ✅ Configure systemd service with proper permissions
+   - ✅ Setup nginx web server and firewall
+   - ✅ Initialize database and start services
+
+4. **Access the setup wizard:**
+   - Open `http://[orange-pi-ip]` in your browser
    - Complete the configuration wizard
-   - Access admin panel at `http://[orange-pi-ip]:5000/admin`
+   - Access admin panel at `http://[orange-pi-ip]/admin`
 
 ### Option 2: Manual Installation
 
@@ -139,12 +149,18 @@ Coin Acceptor GND   → Orange Pi GND (Physical Pin 6)
 Coin Acceptor VCC   → Orange Pi 3.3V (Physical Pin 1)
 ```
 
-### Relay Module Connection
+### Relay Module Connection (Active LOW)
 ```
 Orange Pi GPIO 5 (Physical Pin 29) → Relay Module Signal
 Orange Pi GND (Physical Pin 30)     → Relay Module GND
 Orange Pi 5V (Physical Pin 2)       → Relay Module VCC
 ```
+
+**Important:** The relay is configured as **Active LOW**. This means:
+- **GPIO HIGH** = Relay OFF (coin slot inactive)
+- **GPIO LOW** = Relay ON (coin slot active/energized)
+
+When a client clicks "INSERT COIN", the relay energizes (GPIO goes LOW), enabling the coin mechanism. When a coin is inserted, the relay de-energizes (GPIO goes HIGH), preventing further coins until the next request.
 
 ### Network Setup
 - Connect Orange Pi to your network via Ethernet

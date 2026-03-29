@@ -152,10 +152,11 @@ def init_gpio():
         relay_pin_num = int(get_config('relay_pin', 5))
 
         coin_pin = gpiozero.Button(coin_pin_num)
-        relay_pin = gpiozero.OutputDevice(relay_pin_num, active_high=False)
+        relay_pin = gpiozero.OutputDevice(relay_pin_num, active_high=False, initial_value=True)
 
         coin_pin.when_pressed = coin_inserted
         log_system('INFO', f'GPIO initialized: coin_pin={coin_pin_num}, relay_pin={relay_pin_num}')
+        log_system('INFO', 'Relay initialized in OFF state (HIGH)')
     except Exception as e:
         log_system('ERROR', f'GPIO initialization failed: {str(e)}')
         coin_pin = None
