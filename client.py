@@ -1,160 +1,479 @@
+#!/usr/bin/env python3
+"""
+PISONET Client Application
+Full-screen lockscreen for internet cafe management
+"""
+
 import tkinter as tk
-from tkinter import simpledialog, Canvas
+from tkinter import messagebox, simpledialog
 import requests
 import threading
 import time
-import keyboard
+import socket
+import platform
+import psutil
+import os
 import sys
-try:
-    import winsound
-    HAS_SOUND = True
-except ImportError:
-    HAS_SOUND = False
+import json
+import uuid
+import logging
+from datetime import datetime
 
-server_ip = sys.argv[1] if len(sys.argv) > 1 else '192.168.1.100'
-client_id = None
+# Configure logging
+logging.basicConfig(
+    filename='pisonet_client.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
-def register():
-    global client_id
-    try:
-        resp = requests.post(f'http://{server_ip}/register')
-        client_id = resp.json()['client_id']
-        print(f"Registered with ID: {client_id}")
-    except Exception as e:
-        print(f"Registration failed: {e}")
+class PisonetClient:
+    def __init__(self, server_url="http://localhost:5000"):
+        self.server_url = server_url
+        self.client_id = self.get_or_create_client_id()
+        self.credit = 0
+        self.is_locked = True
+        self.timer_running = False
 
-register()
+        # Create main window
+        self.root = tk.Tk()
+        self.root.title("PISONET Client")
+        self.root.attributes('-fullscreen', True)
+        self.root.attributes('-topmost', True)
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.root.bind('<Key>', self.on_key_press)
+        self.root.bind('<Button>', self.on_mouse_click)
 
-root = tk.Tk()
-root.attributes('-fullscreen', True)
-root.attributes('-topmost', True)  # Keep on top
-root.protocol("WM_DELETE_WINDOW", lambda: None)  # Prevent closing
-root.bind('<Button-3>', lambda e: None)  # Disable right-click
-root.title("PISONET Lock")
+        # Prevent alt+tab and other window switching
+        self.root.bind('<Alt-Key>', lambda e: 'break')
+        self.root.bind('<F4>', lambda e: 'break')
 
-# Create canvas for gradient background
-canvas = Canvas(root, width=root.winfo_screenwidth(), height=root.winfo_screenheight())
-canvas.pack(fill="both", expand=True)
+        # Create UI elements
+        self.create_ui()
 
-# Create gradient background
-def create_gradient(canvas, width, height):
-    for i in range(height):
-        color = "#%02x%02x%02x" % (int(20 + 40 * (i / height)), int(20 + 40 * (i / height)), int(50 + 100 * (i / height)))
-        canvas.create_line(0, i, width, i, fill=color)
+        # Start background threads
+        self.update_thread = threading.Thread(target=self.update_loop, daemon=True)
+        self.update_thread.start()
 
-create_gradient(canvas, root.winfo_screenwidth(), root.winfo_screenheight())
+        # Register with server
+        self.register_with_server()
 
-# Labels
-title_label = canvas.create_text(root.winfo_screenwidth()//2, root.winfo_screenheight()//2 - 100, 
-                                text="PISONET", font=('Arial', 60, 'bold'), fill='white')
-message_label = canvas.create_text(root.winfo_screenwidth()//2, root.winfo_screenheight()//2 - 20, 
-                                  text="Please insert coin to start your session", font=('Arial', 24), fill='white')
-credit_label = canvas.create_text(root.winfo_screenwidth()//2, root.winfo_screenheight()//2 + 20, 
-                                 text="", font=('Arial', 18), fill='yellow')
-
-# Timer window for when unlocked
-timer_window = None
-timer_label = None
-
-def update_timer():
-    global timer_window, timer_label
-    if client_id:
+    def get_or_create_client_id(self):
+        """Get or create unique client ID"""
         try:
-            resp = requests.get(f'http://{server_ip}/get_credit', params={'client_id': client_id})
-            credit = resp.json()['credit']
-            if credit > 0:
-                if timer_window is None:
-                    timer_window = tk.Toplevel(root)
-                    timer_window.title("Session Time")
-                    timer_window.geometry("300x100+10+10")
-                    timer_label = tk.Label(timer_window, font=('Arial', 20))
-                    timer_label.pack()
-                timer_window.deiconify()
-                timer_label.config(text=f"Time Left: {credit:.1f} min")
-                root.withdraw()
+            if os.path.exists('client_config.json'):
+                with open('client_config.json', 'r') as f:
+                    config = json.load(f)
+                    return config.get('client_id')
             else:
-                if timer_window:
-                    timer_window.withdraw()
-                root.deiconify()
+                client_id = f"client_{uuid.uuid4().hex[:8]}"
+                config = {'client_id': client_id}
+                with open('client_config.json', 'w') as f:
+                    json.dump(config, f)
+                return client_id
+        except Exception as e:
+            logging.error(f"Error getting client ID: {e}")
+            return f"client_{uuid.uuid4().hex[:8]}"
+
+    def create_ui(self):
+        """Create the user interface"""
+        # Main frame
+        self.main_frame = tk.Frame(self.root, bg='#667eea')
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Header
+        header_frame = tk.Frame(self.main_frame, bg='rgba(0,0,0,0.3)')
+        header_frame.pack(fill=tk.X, pady=20)
+
+        title_label = tk.Label(
+            header_frame,
+            text="PISONET",
+            font=('Arial', 48, 'bold'),
+            fg='white',
+            bg='rgba(0,0,0,0.3)'
+        )
+        title_label.pack(pady=10)
+
+        self.status_label = tk.Label(
+            header_frame,
+            text="Connecting to server...",
+            font=('Arial', 16),
+            fg='white',
+            bg='rgba(0,0,0,0.3)'
+        )
+        self.status_label.pack()
+
+        # Credit display
+        self.credit_label = tk.Label(
+            self.main_frame,
+            text="0:00",
+            font=('Arial', 72, 'bold'),
+            fg='white',
+            bg='#667eea'
+        )
+        self.credit_label.pack(pady=40)
+
+        # Message
+        self.message_label = tk.Label(
+            self.main_frame,
+            text="Welcome to PISONET Internet Cafe",
+            font=('Arial', 24),
+            fg='white',
+            bg='#667eea',
+            wraplength=800
+        )
+        self.message_label.pack(pady=20)
+
+        # Coin button
+        self.coin_button = tk.Button(
+            self.main_frame,
+            text="🪙 INSERT COIN",
+            command=self.request_coin,
+            font=('Arial', 32, 'bold'),
+            bg='#FFD700',
+            fg='black',
+            relief=tk.RAISED,
+            bd=5,
+            padx=40,
+            pady=20
+        )
+        self.coin_button.pack(pady=30)
+
+        # Timer (hidden initially)
+        self.timer_label = tk.Label(
+            self.main_frame,
+            text="Session Time: 0:00",
+            font=('Arial', 28),
+            fg='white',
+            bg='#667eea'
+        )
+        self.timer_label.pack(pady=20)
+        self.timer_label.pack_forget()
+
+        # Admin button (hidden)
+        self.admin_button = tk.Button(
+            self.main_frame,
+            text="Admin",
+            command=self.show_admin_login,
+            font=('Arial', 12),
+            bg='rgba(255,255,255,0.2)',
+            fg='white',
+            relief=tk.FLAT
+        )
+        self.admin_button.place(relx=0.95, rely=0.05, anchor=tk.NE)
+
+        # Instructions
+        instructions = tk.Label(
+            self.main_frame,
+            text="Click 'INSERT COIN' to enable the coin slot\nInsert coin at the server to start your session",
+            font=('Arial', 16),
+            fg='white',
+            bg='#667eea',
+            justify=tk.CENTER
+        )
+        instructions.pack(pady=20)
+
+    def register_with_server(self):
+        """Register this client with the server"""
+        try:
+            data = {
+                'client_id': self.client_id,
+                'hostname': platform.node(),
+                'ip_address': self.get_local_ip()
+            }
+
+            response = requests.post(f"{self.server_url}/api/register", json=data, timeout=5)
+            result = response.json()
+
+            if result.get('success'):
+                self.status_label.config(text="Connected", fg="#27ae60")
+                logging.info("Successfully registered with server")
+            else:
+                self.status_label.config(text="Registration Failed", fg="#e74c3c")
+                logging.error(f"Registration failed: {result.get('message')}")
+
+        except Exception as e:
+            self.status_label.config(text="Connection Failed", fg="#e74c3c")
+            logging.error(f"Registration error: {e}")
+
+    def get_local_ip(self):
+        """Get local IP address"""
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
         except:
-            pass
-    root.after(1000, update_timer)  # Update every second
+            return "127.0.0.1"
 
-update_timer()
-
-# Button
-button = tk.Button(root, text="INSERT COIN", command=request_coin, font=('Arial', 30, 'bold'), 
-                  bg='#FFD700', fg='black', activebackground='#FFA500', activeforeground='white',
-                  relief='raised', bd=5, padx=20, pady=10)
-button_window = canvas.create_window(root.winfo_screenwidth()//2, root.winfo_screenheight()//2 + 100, window=button)
-
-def request_coin():
-    if client_id:
-        # Sound effect
-        if HAS_SOUND:
-            winsound.Beep(800, 200)
-        # Animation: change button color temporarily
-        button.config(bg='#FF4500', text="REQUESTING...")
-        root.after(1000, lambda: button.config(bg='#FFD700', text="INSERT COIN"))
-        try:
-            resp = requests.post(f'http://{server_ip}/request_coin', json={'client_id': client_id})
-            print("Coin request sent")
-        except Exception as e:
-            print(f"Request failed: {e}")
-
-def check_credit():
-    while True:
-        if client_id:
+    def update_loop(self):
+        """Main update loop to check credit and server status"""
+        while True:
             try:
-                resp = requests.get(f'http://{server_ip}/get_credit', params={'client_id': client_id})
-                credit = resp.json()['credit']
-                canvas.itemconfig(credit_label, text=f"Credit: {credit:.1f} minutes" if credit > 0 else "")
+                self.check_credit()
+                time.sleep(5)  # Check every 5 seconds
             except Exception as e:
-                print(f"Credit check failed: {e}")
-        time.sleep(30)  # Less frequent
+                logging.error(f"Update loop error: {e}")
+                time.sleep(10)  # Wait longer on error
 
-threading.Thread(target=check_credit, daemon=True).start()
-
-def on_f10():
-    password = simpledialog.askstring("Admin", "Enter password:", show='*')
-    if password == '1234':
-        admin_win = tk.Toplevel(root)
-        admin_win.title("Client Admin")
-        btn = tk.Button(admin_win, text="Force Close App", command=force_close)
-        btn.pack()
-        admin_win.mainloop()
-
-def force_close():
-    if client_id:
+    def check_credit(self):
+        """Check current credit from server"""
         try:
-            requests.post(f'http://{server_ip}/force_unlock', json={'client_id': client_id})
-            print("Force unlock requested")
+            response = requests.post(
+                f"{self.server_url}/api/get_credit",
+                json={'client_id': self.client_id},
+                timeout=5
+            )
+            result = response.json()
+
+            if result.get('success'):
+                new_credit = result.get('credit', 0)
+                if new_credit != self.credit:
+                    self.credit = new_credit
+                    self.update_display()
+
+                    if self.credit > 0 and self.is_locked:
+                        self.unlock()
+                    elif self.credit <= 0 and not self.is_locked:
+                        self.lock()
+
         except Exception as e:
-            print(f"Force unlock failed: {e}")
-    root.destroy()
+            logging.error(f"Credit check error: {e}")
 
-keyboard.add_hotkey('f10', on_f10)
+    def update_display(self):
+        """Update the credit display"""
+        minutes = int(self.credit)
+        seconds = int((self.credit % 1) * 60)
+        time_str = f"{minutes}:{seconds:02d}"
 
-root.mainloop()
+        self.credit_label.config(text=time_str)
 
-def on_f10():
-    password = simpledialog.askstring("Admin", "Enter password:", show='*')
-    if password == '1234':
-        admin_win = tk.Toplevel(root)
-        admin_win.title("Client Admin")
-        btn = tk.Button(admin_win, text="Force Close App", command=force_close)
-        btn.pack()
-        admin_win.mainloop()
+        if self.credit > 0:
+            self.message_label.config(text="Session Active - Enjoy your internet!")
+            self.coin_button.pack_forget()
+            self.timer_label.pack(pady=20)
+            self.main_frame.config(bg='#27ae60')
+        else:
+            self.message_label.config(text="Please insert coin to start your session")
+            self.coin_button.pack(pady=30)
+            self.timer_label.pack_forget()
+            self.main_frame.config(bg='#667eea')
 
-def force_close():
-    if client_id:
+    def request_coin(self):
+        """Request coin insertion from server"""
         try:
-            requests.post(f'http://{server_ip}/force_unlock', json={'client_id': client_id})
-            print("Force unlock requested")
+            self.coin_button.config(text="REQUESTING...", state=tk.DISABLED)
+
+            response = requests.post(
+                f"{self.server_url}/api/request_coin",
+                json={'client_id': self.client_id},
+                timeout=5
+            )
+            result = response.json()
+
+            if result.get('success'):
+                self.message_label.config(text="Coin slot enabled - Please insert coin at the server")
+                logging.info("Coin request successful")
+            else:
+                self.message_label.config(text="Failed to enable coin slot - Please try again")
+                logging.error(f"Coin request failed: {result.get('message')}")
+
         except Exception as e:
-            print(f"Force unlock failed: {e}")
-    root.destroy()
+            self.message_label.config(text="Connection error - Please try again")
+            logging.error(f"Coin request error: {e}")
 
-keyboard.add_hotkey('f10', on_f10)
+        finally:
+            # Re-enable button after 3 seconds
+            self.root.after(3000, lambda: self.coin_button.config(
+                text="🪙 INSERT COIN", state=tk.NORMAL
+            ))
 
-root.mainloop()
+    def lock(self):
+        """Lock the workstation"""
+        self.is_locked = True
+        self.main_frame.config(bg='#667eea')
+        self.stop_timer()
+        logging.info("Workstation locked")
+
+    def unlock(self):
+        """Unlock the workstation"""
+        self.is_locked = False
+        self.main_frame.config(bg='#27ae60')
+        self.start_timer()
+        logging.info("Workstation unlocked")
+
+    def start_timer(self):
+        """Start the session timer"""
+        if not self.timer_running:
+            self.timer_running = True
+            self.update_timer()
+
+    def stop_timer(self):
+        """Stop the session timer"""
+        self.timer_running = False
+
+    def update_timer(self):
+        """Update the timer display"""
+        if self.timer_running and self.credit > 0:
+            minutes = int(self.credit)
+            seconds = int((self.credit % 1) * 60)
+            time_str = f"Session Time: {minutes}:{seconds:02d}"
+            self.timer_label.config(text=time_str)
+
+            # Schedule next update in 1 second
+            self.root.after(1000, self.update_timer)
+        else:
+            self.timer_running = False
+
+    def show_admin_login(self):
+        """Show admin login dialog"""
+        password = simpledialog.askstring("Admin Login", "Enter admin password:", show='*')
+        if password:
+            try:
+                # In a real implementation, this should verify with the server
+                if password == "1234":  # Default password
+                    self.show_admin_menu()
+                else:
+                    messagebox.showerror("Error", "Incorrect password")
+            except Exception as e:
+                messagebox.showerror("Error", f"Login failed: {e}")
+
+    def show_admin_menu(self):
+        """Show admin menu"""
+        admin_window = tk.Toplevel(self.root)
+        admin_window.title("PISONET Admin")
+        admin_window.geometry("400x300")
+        admin_window.attributes('-topmost', True)
+
+        tk.Label(admin_window, text="Admin Menu", font=('Arial', 16, 'bold')).pack(pady=10)
+
+        tk.Button(admin_window, text="Add Credit", command=lambda: self.admin_add_credit(admin_window)).pack(pady=5)
+        tk.Button(admin_window, text="Reset Credit", command=lambda: self.admin_reset_credit(admin_window)).pack(pady=5)
+        tk.Button(admin_window, text="View Logs", command=self.view_logs).pack(pady=5)
+        tk.Button(admin_window, text="System Info", command=self.show_system_info).pack(pady=5)
+        tk.Button(admin_window, text="Exit Admin", command=admin_window.destroy).pack(pady=5)
+
+    def admin_add_credit(self, parent):
+        """Admin function to add credit"""
+        amount = simpledialog.askinteger("Add Credit", "Enter minutes to add:")
+        if amount and amount > 0:
+            try:
+                response = requests.post(
+                    f"{self.server_url}/api/add_credit",
+                    json={'client_id': self.client_id, 'amount': amount},
+                    timeout=5
+                )
+                result = response.json()
+                if result.get('success'):
+                    messagebox.showinfo("Success", f"Added {amount} minutes")
+                    self.check_credit()  # Refresh credit
+                else:
+                    messagebox.showerror("Error", result.get('message', 'Failed to add credit'))
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to add credit: {e}")
+
+    def admin_reset_credit(self, parent):
+        """Admin function to reset credit"""
+        if messagebox.askyesno("Confirm", "Reset credit to zero?"):
+            try:
+                response = requests.post(
+                    f"{self.server_url}/api/reset_credit",
+                    json={'client_id': self.client_id},
+                    timeout=5
+                )
+                result = response.json()
+                if result.get('success'):
+                    messagebox.showinfo("Success", "Credit reset")
+                    self.check_credit()  # Refresh credit
+                else:
+                    messagebox.showerror("Error", result.get('message', 'Failed to reset credit'))
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to reset credit: {e}")
+
+    def view_logs(self):
+        """View client logs"""
+        try:
+            if os.path.exists('pisonet_client.log'):
+                with open('pisonet_client.log', 'r') as f:
+                    logs = f.read()
+
+                log_window = tk.Toplevel(self.root)
+                log_window.title("Client Logs")
+                log_window.geometry("600x400")
+
+                text_widget = tk.Text(log_window, wrap=tk.WORD)
+                text_widget.insert(tk.END, logs)
+                text_widget.config(state=tk.DISABLED)
+
+                scrollbar = tk.Scrollbar(log_window, command=text_widget.yview)
+                text_widget.config(yscrollcommand=scrollbar.set)
+
+                text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+                scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+            else:
+                messagebox.showinfo("Logs", "No logs found")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to read logs: {e}")
+
+    def show_system_info(self):
+        """Show system information"""
+        try:
+            info = f"""
+System Information:
+
+Hostname: {platform.node()}
+IP Address: {self.get_local_ip()}
+Platform: {platform.platform()}
+Python: {sys.version}
+
+CPU Usage: {psutil.cpu_percent()}%
+Memory Usage: {psutil.virtual_memory().percent}%
+Disk Usage: {psutil.disk_usage('/').percent}%
+
+Client ID: {self.client_id}
+Server URL: {self.server_url}
+Current Credit: {self.credit} minutes
+Status: {'Locked' if self.is_locked else 'Unlocked'}
+"""
+            messagebox.showinfo("System Info", info)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to get system info: {e}")
+
+    def on_key_press(self, event):
+        """Handle key press events"""
+        # Prevent common exit combinations
+        if event.keysym in ['Escape', 'F4'] or (event.state & 0x4 and event.keysym == 'c'):
+            return 'break'
+
+        # Admin hotkey (Ctrl+Shift+A)
+        if event.state & 0x5 and event.keysym.lower() == 'a':  # Ctrl+Shift+A
+            self.show_admin_login()
+            return 'break'
+
+    def on_mouse_click(self, event):
+        """Handle mouse click events"""
+        # Prevent right-click context menu
+        if event.num == 3:
+            return 'break'
+
+    def on_closing(self):
+        """Handle window close event"""
+        # Prevent closing
+        pass
+
+    def run(self):
+        """Start the application"""
+        logging.info("PISONET Client started")
+        self.root.mainloop()
+
+def main():
+    # Allow custom server URL
+    server_url = "http://localhost:5000"
+    if len(sys.argv) > 1:
+        server_url = sys.argv[1]
+
+    client = PisonetClient(server_url)
+    client.run()
+
+if __name__ == "__main__":
+    main()

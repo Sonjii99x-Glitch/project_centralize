@@ -1,0 +1,33 @@
+# PISONET Configuration Template
+# Copy this to config.json and modify as needed
+
+{
+    "server": {
+        "host": "0.0.0.0",
+        "port": 5000,
+        "debug": false
+    },
+    "database": {
+        "path": "data/pisonet.db",
+        "backup_interval": 3600
+    },
+    "gpio": {
+        "coin_pin": 3,
+        "relay_pin": 5,
+        "pin_factory": "native"
+    },
+    "system": {
+        "coin_value": 10,
+        "max_credit": 480,
+        "session_timeout": 1440,
+        "cleanup_interval": 60,
+        "admin_password": "1234",
+        "system_name": "PISONET Cafe",
+        "timezone": "Asia/Manila"
+    },
+    "security": {
+        "maintenance_mode": false,
+        "allow_remote_admin": true,
+        "log_level": "INFO"
+    }
+}

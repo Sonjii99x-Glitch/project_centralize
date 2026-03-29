@@ -1,14 +1,30 @@
 [Unit]
-Description=PISONET Server
+Description=PISONET Internet Cafe Management System
 After=network.target
+Wants=network.target
 
 [Service]
-ExecStart=/root/project_centralize/pisonet_env/bin/python /root/project_centralize/server.py
-WorkingDirectory=/root/project_centralize
-StandardOutput=inherit
-StandardError=inherit
+Type=simple
+User=pisonet
+Group=pisonet
+WorkingDirectory=/opt/pisonet
+ExecStart=/opt/pisonet/venv/bin/python /opt/pisonet/server.py
 Restart=always
-User=root
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pisonet
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/opt/pisonet/data /opt/pisonet/backups
+ProtectHome=yes
+PrivateDevices=no
+
+# GPIO access for Orange Pi
+SupplementaryGroups=gpio i2c spi
 
 [Install]
 WantedBy=multi-user.target

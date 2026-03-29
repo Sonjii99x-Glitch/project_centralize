@@ -1,362 +1,409 @@
-# Centralized PISONET Server
-# Complete Setup Guide for Orange Pi One Coin-Operated Internet Cafe System
+# PISONET - Centralized Internet Cafe Management System
 
-## Quick Start (Automated Installation)
+A complete coin-operated internet cafe management system designed for Orange Pi One with centralized server architecture, web-based administration, and secure client locking.
 
-For the fastest setup, use the automated installer:
+## 🚀 Features
 
-### Windows Users:
-1. Download `PISONET_Installer.bat` from the repository
-2. Edit the file and update the Orange Pi IP address (line 12: `set ORANGE_PI_IP=192.168.1.100`)
-3. Double-click `PISONET_Installer.bat` to run
-4. Follow the on-screen instructions
+### Server Features
+- **Web-based Setup Wizard**: Easy initial configuration through browser
+- **Real-time Admin Dashboard**: Monitor clients, manage credits, view analytics
+- **GPIO Coin Detection**: Native GPIO support for Orange Pi One (Allwinner H3)
+- **SQLite Database**: Robust data storage with comprehensive logging
+- **RESTful API**: Clean API for client communication
+- **Systemd Integration**: Production-ready service management
+- **Automatic Backups**: Scheduled database backups
+- **Firewall Integration**: Secure network configuration
 
-### Manual Installation:
-If automated installation doesn't work, follow the detailed steps below.
+### Client Features
+- **Full-screen Lock Screen**: Secure workstation locking
+- **Real-time Credit Display**: Live credit countdown
+- **Admin Hotkeys**: Emergency admin access (Ctrl+Shift+A)
+- **Network Monitoring**: Automatic server reconnection
+- **System Integration**: Prevents common exit methods
+- **Cross-platform**: Windows/Linux client support
 
-## Overview
-This project provides a centralized coin-operated internet cafe (PISONET) management system using an Orange Pi One as the server. The system supports up to 50+ client computers with automatic locking when credits expire.
+### Hardware Support
+- **Orange Pi One**: Primary target with GPIO coin/relay control
+- **Coin Acceptors**: Standard coin mechanisms with GPIO interface
+- **Relay Modules**: Control power/reset for client machines
+- **Network**: Ethernet-based client communication
 
-### Key Features
-- Centralized coin management for multiple clients
-- Web-based admin dashboard
-- GPIO-controlled coin detection and relay management
-- Client-side fullscreen lockscreen with security features
-- Real-time statistics and maintenance tools
-- DHCP-compatible networking
+## 📋 Requirements
 
-## System Requirements
+### Server Requirements
+- **Hardware**: Orange Pi One or compatible SBC
+- **OS**: Armbian 26.2.1 or Debian 12 (Bookworm)
+- **Python**: 3.11 or higher
+- **GPIO**: Physical pins for coin sensor and relay control
 
-### Server (Orange Pi One)
-- Orange Pi One board with 512MB RAM and 16GB storage
-- Armbian 26.2.1 or compatible Debian-based OS installed
-- Root SSH access (default user: root, password: 1234)
-- Internet connection for initial setup
-- Coin acceptor machine with signal output
-- Relay module for controlling coin acceptor power
+### Client Requirements
+- **OS**: Windows 10/11 or Linux
+- **Python**: 3.8 or higher
+- **Network**: Ethernet connection to server
+- **Display**: Full HD monitor (1920x1080 recommended)
 
-### Client Computers
-- Windows 10/11 or Linux operating system
-- Python 3.7 or higher
-- Internet connection
-- Administrative privileges for installation
+## 🔧 Installation
 
-### Hardware Components
-- Coin sensor (connected to GPIO pin - verify Orange Pi One mapping)
-- Relay module (connected to GPIO pin - verify Orange Pi One mapping)
-- Ethernet cable for networking
-- Power supply for Orange Pi One
+### Option 1: Automated SSH Deployment (Recommended)
 
-**CRITICAL GPIO NOTE**: Orange Pi One uses Allwinner H3 chip with different GPIO numbering than Raspberry Pi. The code uses gpiozero's native backend for compatibility. You MUST verify the actual GPIO pin mappings for your specific Orange Pi One board revision. Use the pinout diagram from the official Orange Pi documentation.
+1. **Prepare your Orange Pi One:**
+   ```bash
+   # Update system
+   sudo apt update && sudo apt upgrade -y
 
-## Step-by-Step Server Installation on Orange Pi One
-
-### Step 1: Initial Connection
-1. Power on your Orange Pi One with the Armbian OS installed
-2. Connect the Orange Pi to your network via Ethernet cable
-3. Find the IP address of your Orange Pi:
-   - Check your router's admin panel for connected devices
-   - Or use network scanning tools like `nmap` from another computer
-4. Open a terminal/command prompt on your computer
-5. Connect via SSH:
-   ```
-   ssh root@<orange_pi_ip_address>
-   ```
-   When prompted for password, enter: `1234`
-
-### Step 2: System Update
-1. Update the package list:
-   ```
-   apt update
-   ```
-2. Upgrade all installed packages:
-   ```
-   apt upgrade -y
-   ```
-3. Install essential tools:
-   ```
-   apt install curl wget git -y
+   # Install required packages
+   sudo apt install -y python3 python3-pip python3-venv git curl wget
    ```
 
-### Step 3: Install Python and Dependencies
-1. Install Python 3 and build tools:
+2. **Run the automated deployment script:**
+   ```bash
+   # Download and run deployment script
+   curl -fsSL https://raw.githubusercontent.com/your-repo/pisonet/main/deploy.sh | bash
    ```
-   apt install python3 python3-pip python3.13-venv python3-dev gcc -y
+
+3. **Access the setup wizard:**
+   - Open `http://[orange-pi-ip]:5000/setup` in your browser
+   - Complete the configuration wizard
+   - Access admin panel at `http://[orange-pi-ip]:5000/admin`
+
+### Option 2: Manual Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/your-repo/pisonet.git
+   cd pisonet
    ```
-2. Create a virtual environment for the project:
+
+2. **Create virtual environment:**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
    ```
-   python3 -m venv pisonet_env
-   ```
-3. Activate the virtual environment:
-   ```
-   source pisonet_env/bin/activate
-   ```
-4. Install GPIO library system-wide (required for GPIO access):
-   ```
-   apt install python3-gpiozero -y
-   ```
-5. Install Python dependencies in the virtual environment:
-   ```
+
+3. **Install dependencies:**
+   ```bash
    pip install -r requirements.txt
    ```
-6. Deactivate the virtual environment (we'll configure the service to activate it):
-   ```
-   deactivate
-   ```
 
-### Step 4: Download Project Files
-1. Clone the repository to your Orange Pi:
-   ```
-   git clone https://github.com/Sonjii99x-Glitch/project_centralize.git
-   ```
-2. Navigate to the project directory:
-   ```
-   cd project_centralize
-   ```
-3. Install Python dependencies:
-   ```
-   pip3 install -r requirements.txt
+4. **Initialize database:**
+   ```bash
+   python3 -c "from server import init_db; init_db()"
    ```
 
-### Step 5: Hardware Wiring
-**CRITICAL: Verify GPIO pin mappings before connecting anything!**
+5. **Configure GPIO pins:**
+   - Edit `server.py` and verify GPIO pin numbers for your Orange Pi One
+   - Default: Coin sensor (GPIO 3), Relay control (GPIO 5)
 
-1. **Find Your Orange Pi One GPIO Pinout**:
-   - Visit: https://linux-sunxi.org/Xunlong_Orange_Pi_One
-   - Or search for "Orange Pi One GPIO pinout Allwinner H3"
-   - Note the physical pin numbers and their GPIO functions
-
-2. **Identify Correct GPIO Pins**:
-   - Look for pins labeled as GPIO or with PA/PB/PC/PD prefixes
-   - Common GPIO pins on Orange Pi One: PA0-PA21, PG0-PG13
-   - Avoid power pins (3.3V, 5V) and ground pins
-
-3. **Coin Sensor Connection**:
-   - Find a suitable GPIO pin for coin sensor signal
-   - Connect coin sensor signal wire → Chosen GPIO pin
-   - Connect coin sensor ground → Orange Pi ground pin
-   - Connect coin sensor power → 3.3V pin (check sensor specs)
-
-4. **Relay Module Connection**:
-   - Find a suitable GPIO pin for relay control
-   - Connect relay control wire → Chosen GPIO pin
-   - Connect relay ground → Orange Pi ground pin
-   - Connect relay power → 3.3V pin (check relay specs)
-
-5. **Coin Acceptor Power Control**:
-   - Coin acceptor power input → Normally Open (NO) contacts of relay
-   - Power source → Common (COM) contact of relay
-
-**VERIFICATION STEPS**:
-- Update the pin numbers in server.py (lines with gpiozero.Button() and gpiozero.OutputDevice())
-- Test GPIO access: `python3 -c "import gpiozero; print('GPIO working')"`
-- Check /sys/class/gpio/ directory for available GPIO pins
-
-### Step 5.5: GPIO Pin Number Configuration
-After identifying your GPIO pins, update the server.py file:
-
-1. Edit the server configuration:
-   ```
-   nano /root/project_centralize/server.py
+6. **Start the server:**
+   ```bash
+   python3 server.py
    ```
 
-2. Find these lines (around line 10-12):
-   ```python
-   coin_pin = gpiozero.Button(3)  # Coin sensor - UPDATE THIS NUMBER
-   relay_pin = gpiozero.OutputDevice(5, active_high=False)  # Relay - UPDATE THIS NUMBER
+### Option 3: Windows Development Setup
+
+1. **Run the installer:**
+   ```batch
+   PISONET_Installer.bat
    ```
 
-3. Replace the numbers (3 and 5) with your actual GPIO pin numbers from the pinout diagram
+2. **Start the server:**
+   ```batch
+   python server.py
+   ```
 
-4. Save and exit: Ctrl+X, Y, Enter
+## ⚙️ Configuration
 
-**Example**: If your coin sensor should connect to physical pin 12 (GPIO PA12), and relay to physical pin 16 (GPIO PA16), change the code to:
+### GPIO Pin Configuration
+Verify your Orange Pi One pinout diagram and update these settings:
+
 ```python
-coin_pin = gpiozero.Button(12)
-relay_pin = gpiozero.OutputDevice(16, active_high=False)
+# In server.py or via web interface
+coin_pin = 3    # GPIO pin connected to coin sensor
+relay_pin = 5   # GPIO pin connected to relay module
 ```
 
-### Step 6: Configure and Start the Service
-1. Copy the systemd service file:
-   ```
-   cp pisonet.service /etc/systemd/system/
-   ```
-2. Reload systemd daemon:
-   ```
-   systemctl daemon-reload
-   ```
-3. Enable the service to start on boot:
-   ```
-   systemctl enable pisonet
-   ```
-4. Start the service:
-   ```
-   systemctl start pisonet
-   ```
-5. Check service status:
-   ```
-   systemctl status pisonet
-   ```
-   You should see "active (running)"
+### System Settings
+Configure through the web interface (`/admin`):
 
-### Step 7: Verify Server Operation
-1. Find your Orange Pi's IP address:
-   ```
-   ip addr show
-   ```
-   Look for the IP address under `eth0` or similar network interface
-2. Test the admin panel:
-   - Open a web browser on any computer in the same network
-   - Navigate to: `http://<orange_pi_ip>/admin`
-   - You should see the admin dashboard
+- **Coin Value**: Minutes per peso (default: 10)
+- **Max Credit**: Maximum credit per client (default: 480 minutes)
+- **Session Timeout**: Automatic logout time (default: 1440 minutes)
+- **Admin Password**: Web interface access password
 
-## Step-by-Step Client Installation
+## 🔌 Hardware Wiring
 
-### For Windows Clients
+### Coin Acceptor Connection
+```
+Coin Acceptor Signal → Orange Pi GPIO 3 (Physical Pin 5)
+Coin Acceptor GND   → Orange Pi GND (Physical Pin 6)
+Coin Acceptor VCC   → Orange Pi 3.3V (Physical Pin 1)
+```
 
-#### Step 1: Install Python
-1. Download Python 3.10+ from https://www.python.org/downloads/
-2. Run the installer
-3. **Important**: Check "Add Python to PATH" during installation
-4. Click "Install Now"
-5. Verify installation: Open Command Prompt and run `python --version`
+### Relay Module Connection
+```
+Orange Pi GPIO 5 (Physical Pin 29) → Relay Module Signal
+Orange Pi GND (Physical Pin 30)     → Relay Module GND
+Orange Pi 5V (Physical Pin 2)       → Relay Module VCC
+```
 
-#### Step 2: Install Dependencies
-1. Open Command Prompt as Administrator
-2. Install required packages:
-   ```
-   pip install requests keyboard
+### Network Setup
+- Connect Orange Pi to your network via Ethernet
+- Configure static IP or use DHCP reservation
+- Ensure all client machines can reach the server
+
+## 🖥️ Client Setup
+
+### Windows Client
+1. **Install Python 3.8+** from python.org
+2. **Download client.py** to each client machine
+3. **Run the client:**
+   ```batch
+   python client.py http://[server-ip]:5000
    ```
 
-#### Step 3: Download and Run Client
-1. Download `client.py` from the GitHub repository
-2. Save it to a folder (e.g., `C:\PISONET\`)
-3. Create a batch file for easy startup:
-   - Create a new text file named `start_client.bat`
-   - Add this content: `python client.py <server_ip>`
-   - Replace `<server_ip>` with your Orange Pi's IP address
-4. Run the client:
-   - Double-click `start_client.bat`
-   - The lockscreen should appear immediately
-
-### For Linux Clients
-
-#### Step 1: Install Python
-1. Open terminal
-2. Update package list:
-   ```
-   sudo apt update
-   ```
-3. Install Python:
-   ```
-   sudo apt install python3 python3-pip -y
+### Linux Client
+1. **Install dependencies:**
+   ```bash
+   sudo apt install python3 python3-tk python3-requests
    ```
 
-#### Step 2: Install Dependencies
-1. Install required packages:
+2. **Run the client:**
+   ```bash
+   python3 client.py http://[server-ip]:5000
    ```
-   pip3 install requests keyboard
-   ```
 
-#### Step 3: Download and Run Client
-1. Download `client.py` from the GitHub repository
-2. Save it to a folder (e.g., `~/pisonet/`)
-3. Make the script executable:
-   ```
-   chmod +x client.py
-   ```
-4. Run the client:
-   ```
-   python3 client.py <server_ip>
-   ```
-   Replace `<server_ip>` with your Orange Pi's IP address
+### Auto-start Configuration
 
-## Configuration
+#### Windows (Registry)
+Create a scheduled task to run on startup:
+```batch
+schtasks /create /tn "PISONET Client" /tr "python C:\path\to\client.py" /sc onlogon /rl highest
+```
 
-### Server Configuration
-- Access the admin panel at `http://<server_ip>/admin`
-- Set coin value (minutes per peso) in the settings section
-- Monitor connected clients and queue status
-- View system statistics and performance
+#### Linux (Systemd)
+Create `/etc/systemd/system/pisonet-client.service`:
+```ini
+[Unit]
+Description=PISONET Client
+After=network.target
 
-### Client Configuration
-- The client automatically registers with the server on startup
-- No additional configuration required
-- Use F10 hotkey with password "1234" for client admin functions
+[Service]
+Type=simple
+User=clientuser
+ExecStart=/usr/bin/python3 /path/to/client.py
+Restart=always
 
-## Usage Guide
+[Install]
+WantedBy=multi-user.target
+```
 
-### For Administrators
-1. **Monitor System**: Check the admin dashboard regularly
-2. **Manage Clients**: View connected clients, reset credits if needed
-3. **Adjust Settings**: Change coin value as required
-4. **Maintenance**: Use the maintenance tools for system management
+## 🔐 Security Features
 
-### For Users
-1. **Start Session**: Click "INSERT COIN" button on the lockscreen
-2. **Insert Coin**: Place coin in the acceptor when prompted
-3. **Use Computer**: The lockscreen disappears when credit is available
-4. **Monitor Time**: Check the timer window for remaining session time
+### Server Security
+- **Firewall**: Automatic UFW configuration
+- **User Isolation**: Dedicated pisonet user
+- **File Permissions**: Restricted access to data directories
+- **HTTPS Ready**: SSL certificate support
 
-### Admin Panel Features
-- **Settings**: Configure coin value
-- **Statistics**: View total coins and revenue
-- **Clients**: List all connected computers with credit status
-- **Queue**: See pending coin requests
-- **System Status**: Monitor server performance
-- **Maintenance**: Clear credits or restart server
+### Client Security
+- **Screen Lock**: Full-screen tkinter application
+- **Key Blocking**: Prevents Alt+F4, Ctrl+W, etc.
+- **Admin Override**: Secure admin access with password
+- **Process Protection**: Automatic restart on termination
 
-## Troubleshooting
+## 📊 Administration
 
-### Server Issues
-1. **Service not starting**:
-   - Check GPIO connections
-   - Verify Python dependencies: `pip3 list`
-   - Check logs: `journalctl -u pisonet`
+### Web Interface
+Access the admin panel at `http://[server-ip]:5000/admin`
 
-2. **Cannot access admin panel**:
-   - Verify server IP address
-   - Check firewall settings
-   - Ensure service is running: `systemctl status pisonet`
+#### Dashboard Features
+- **Real-time Statistics**: Active clients, revenue, coin count
+- **Client Management**: View, add credit, reset, ban clients
+- **System Monitoring**: CPU, RAM, uptime, GPIO status
+- **Transaction History**: Complete audit trail
+- **System Logs**: Debug and error logging
 
-3. **Coin detection not working**:
-   - Test GPIO pins with simple script
-   - Check wiring connections
-   - Verify coin sensor voltage compatibility
+#### Management Functions
+- **Credit Management**: Add/remove credit manually
+- **Client Control**: Reset, ban, or monitor clients
+- **System Settings**: Configure rates and limits
+- **Backup/Restore**: Database maintenance
+- **Service Control**: Restart server components
+
+### API Endpoints
+- `POST /api/register` - Register new client
+- `POST /api/get_credit` - Get client credit balance
+- `POST /api/request_coin` - Enable coin slot
+- `POST /api/add_credit` - Admin credit management
+- `POST /api/clear_all_credits` - Emergency credit reset
+
+## 🔧 Troubleshooting
+
+### GPIO Issues
+```bash
+# Check GPIO status
+gpio readall
+
+# Test coin sensor
+python3 -c "import gpiozero; pin = gpiozero.Button(3); print('Testing coin pin...'); pin.wait_for_press(); print('Coin detected!')"
+
+# Test relay
+python3 -c "import gpiozero; pin = gpiozero.OutputDevice(5); pin.on(); time.sleep(1); pin.off()"
+```
+
+### Network Issues
+```bash
+# Check server connectivity
+curl http://localhost:5000/api/status
+
+# Test client registration
+curl -X POST http://localhost:5000/api/register -H "Content-Type: application/json" -d '{"client_id":"test"}'
+```
+
+### Database Issues
+```bash
+# Check database integrity
+sqlite3 data/pisonet.db "PRAGMA integrity_check;"
+
+# View recent logs
+sqlite3 data/pisonet.db "SELECT * FROM system_logs ORDER BY timestamp DESC LIMIT 10;"
+```
 
 ### Client Issues
-1. **Lockscreen not appearing**:
-   - Ensure Python is in PATH
-   - Check server connectivity: `ping <server_ip>`
-   - Run as administrator (Windows)
+- **Client won't connect**: Check firewall settings and server IP
+- **Credit not updating**: Verify client ID and server API
+- **Screen won't lock**: Check tkinter installation and permissions
 
-2. **Cannot connect to server**:
-   - Verify server IP address
-   - Check network connectivity
-   - Ensure server service is running
+## 📈 Monitoring & Analytics
 
-3. **Hotkey not working**:
-   - Run client with administrative privileges
-   - Check for keyboard conflicts
+### System Metrics
+- **Revenue Tracking**: Daily/weekly/monthly earnings
+- **Usage Statistics**: Peak hours, average session length
+- **Client Analytics**: Most active clients, credit consumption
+- **System Health**: CPU, memory, disk usage monitoring
 
-### Common Problems
-- **High CPU usage**: Reduce client polling frequency in code
-- **Memory issues**: Monitor with `htop` on server
-- **Network timeouts**: Check DHCP settings and IP conflicts
+### Log Analysis
+```bash
+# View recent activity
+tail -f /var/log/pisonet.log
 
-## Security Notes
-- Change default passwords after setup
-- Keep the server in a secure location
-- Regularly update the system
-- Monitor access logs
+# Search for specific events
+grep "coin inserted" /var/log/pisonet.log
 
-## Support
-For issues or questions:
-1. Check the troubleshooting section above
-2. Review server logs: `journalctl -u pisonet`
-3. Verify all installation steps were followed
-4. Check GitHub repository for updates
+# Count daily transactions
+grep "$(date +%Y-%m-%d)" /var/log/pisonet.log | grep "credit" | wc -l
+```
 
-## License
-This project is open-source. Use at your own risk.
-- Admin can change coin value via web interface
+## 🚀 Production Deployment
+
+### Systemd Service
+```bash
+# Install service
+sudo cp pisonet.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable pisonet
+sudo systemctl start pisonet
+
+# Check status
+sudo systemctl status pisonet
+```
+
+### Nginx Reverse Proxy
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+### SSL Configuration
+```bash
+# Install certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Get SSL certificate
+sudo certbot --nginx -d your-domain.com
+```
+
+## 📝 API Documentation
+
+### Client Registration
+```http
+POST /api/register
+Content-Type: application/json
+
+{
+    "client_id": "client_123",
+    "hostname": "PC-01",
+    "ip_address": "192.168.1.100"
+}
+```
+
+### Credit Check
+```http
+POST /api/get_credit
+Content-Type: application/json
+
+{
+    "client_id": "client_123"
+}
+```
+
+### Coin Request
+```http
+POST /api/request_coin
+Content-Type: application/json
+
+{
+    "client_id": "client_123"
+}
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+For support and questions:
+- Check the troubleshooting section
+- Review system logs
+- Open an issue on GitHub
+- Contact the development team
+
+## 🔄 Changelog
+
+### Version 7.0.0 (Current)
+- Complete repository recreation
+- HTML-based setup wizard
+- Enhanced web admin interface
+- Improved database schema
+- Automated SSH deployment
+- Better client application
+- Comprehensive documentation
+
+### Previous Versions
+- GPIO compatibility fixes
+- Virtual environment improvements
+- Package management updates
+- Installation automation
+- Basic web interface
+- Core functionality implementation
+
+---
+
+**PISONET** - Making internet cafe management simple, secure, and profitable.
