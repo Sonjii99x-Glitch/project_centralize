@@ -1,6 +1,19 @@
 # Centralized PISONET Server
 # Complete Setup Guide for Orange Pi One Coin-Operated Internet Cafe System
 
+## Quick Start (Automated Installation)
+
+For the fastest setup, use the automated installer:
+
+### Windows Users:
+1. Download `PISONET_Installer.bat` from the repository
+2. Edit the file and update the Orange Pi IP address (line 12: `set ORANGE_PI_IP=192.168.1.100`)
+3. Double-click `PISONET_Installer.bat` to run
+4. Follow the on-screen instructions
+
+### Manual Installation:
+If automated installation doesn't work, follow the detailed steps below.
+
 ## Overview
 This project provides a centralized coin-operated internet cafe (PISONET) management system using an Orange Pi One as the server. The system supports up to 50+ client computers with automatic locking when credits expire.
 
