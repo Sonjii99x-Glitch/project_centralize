@@ -68,16 +68,27 @@ This project provides a centralized coin-operated internet cafe (PISONET) manage
 ### Step 3: Install Python and Dependencies
 1. Install Python 3 and pip:
    ```
-   apt install python3 python3-pip -y
+   apt install python3 python3-pip python3-venv -y
    ```
-2. Install GPIO library for hardware control:
+2. Create a virtual environment for the project:
+   ```
+   python3 -m venv pisonet_env
+   ```
+3. Activate the virtual environment:
+   ```
+   source pisonet_env/bin/activate
+   ```
+4. Install GPIO library system-wide (required for GPIO access):
    ```
    apt install python3-gpiozero -y
    ```
-3. Verify Python installation:
+5. Install Python dependencies in the virtual environment:
    ```
-   python3 --version
-   pip3 --version
+   pip install -r requirements.txt
+   ```
+6. Deactivate the virtual environment (we'll configure the service to activate it):
+   ```
+   deactivate
    ```
 
 ### Step 4: Download Project Files

@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
 import gpiozero
-import gpiozero.pins.lgpio
 import sqlite3
 import threading
 import time
@@ -8,9 +7,6 @@ from datetime import datetime, timedelta
 import psutil
 import os
 import subprocess
-
-# Set GPIO factory for Orange Pi One compatibility
-gpiozero.Device.pin_factory = gpiozero.pins.lgpio.LGPIOFactory()
 
 # GPIO setup for Orange Pi One
 # Note: Pin numbers use BCM-style numbering compatible with Orange Pi One

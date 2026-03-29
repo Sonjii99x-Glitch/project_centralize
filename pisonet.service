@@ -3,8 +3,8 @@ Description=PISONET Server
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 /root/pisonet/server.py
-WorkingDirectory=/root/pisonet
+ExecStart=/root/project_centralize/pisonet_env/bin/python /root/project_centralize/server.py
+WorkingDirectory=/root/project_centralize
 StandardOutput=inherit
 StandardError=inherit
 Restart=always
