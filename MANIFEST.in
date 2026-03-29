@@ -1,0 +1,12 @@
+include README.md
+include LICENSE
+include requirements.txt
+include config.template.json
+include pisonet.service
+include PISONET_Installer.bat
+include deploy.sh
+recursive-include data *
+recursive-include backups *
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude .git*
