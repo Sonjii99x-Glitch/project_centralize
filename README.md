@@ -29,12 +29,12 @@ This project provides a centralized coin-operated internet cafe (PISONET) manage
 - Administrative privileges for installation
 
 ### Hardware Components
-- Coin sensor (connected to GPIO pin 3 - verify Orange Pi One pin mapping)
-- Relay module (connected to GPIO pin 5 - verify Orange Pi One pin mapping)
+- Coin sensor (connected to GPIO pin - verify Orange Pi One mapping)
+- Relay module (connected to GPIO pin - verify Orange Pi One mapping)
 - Ethernet cable for networking
 - Power supply for Orange Pi One
 
-**Important GPIO Note**: This system uses gpiozero library configured for Orange Pi One compatibility. The pin numbers (3 and 5) are BCM-style. Verify the actual GPIO pin mappings for your Orange Pi One board, as they may differ from Raspberry Pi. Check the pinout diagram for your specific board revision.
+**CRITICAL GPIO NOTE**: Orange Pi One uses Allwinner H3 chip with different GPIO numbering than Raspberry Pi. The code uses gpiozero's native backend for compatibility. You MUST verify the actual GPIO pin mappings for your specific Orange Pi One board revision. Use the pinout diagram from the official Orange Pi documentation.
 
 ## Step-by-Step Server Installation on Orange Pi One
 
@@ -106,22 +106,62 @@ This project provides a centralized coin-operated internet cafe (PISONET) manage
    ```
 
 ### Step 5: Hardware Wiring
-**IMPORTANT: Disconnect power before wiring! Verify pin mappings for your Orange Pi One board.**
+**CRITICAL: Verify GPIO pin mappings before connecting anything!**
 
-1. Locate GPIO pins on your Orange Pi One (refer to official pinout diagram for your board revision)
-2. **Coin Sensor Connection**:
-   - Coin sensor signal wire → GPIO pin 3 (BCM-style numbering, verify actual pin)
-   - Coin sensor ground → Orange Pi ground pin
-   - Coin sensor power → 3.3V or 5V pin (check sensor specifications)
-3. **Relay Module Connection**:
-   - Relay control wire → GPIO pin 5 (BCM-style numbering, verify actual pin)
-   - Relay ground → Orange Pi ground pin
-   - Relay power → 3.3V or 5V pin (check relay specifications)
-4. **Coin Acceptor Power Control**:
+1. **Find Your Orange Pi One GPIO Pinout**:
+   - Visit: https://linux-sunxi.org/Xunlong_Orange_Pi_One
+   - Or search for "Orange Pi One GPIO pinout Allwinner H3"
+   - Note the physical pin numbers and their GPIO functions
+
+2. **Identify Correct GPIO Pins**:
+   - Look for pins labeled as GPIO or with PA/PB/PC/PD prefixes
+   - Common GPIO pins on Orange Pi One: PA0-PA21, PG0-PG13
+   - Avoid power pins (3.3V, 5V) and ground pins
+
+3. **Coin Sensor Connection**:
+   - Find a suitable GPIO pin for coin sensor signal
+   - Connect coin sensor signal wire → Chosen GPIO pin
+   - Connect coin sensor ground → Orange Pi ground pin
+   - Connect coin sensor power → 3.3V pin (check sensor specs)
+
+4. **Relay Module Connection**:
+   - Find a suitable GPIO pin for relay control
+   - Connect relay control wire → Chosen GPIO pin
+   - Connect relay ground → Orange Pi ground pin
+   - Connect relay power → 3.3V pin (check relay specs)
+
+5. **Coin Acceptor Power Control**:
    - Coin acceptor power input → Normally Open (NO) contacts of relay
    - Power source → Common (COM) contact of relay
 
-**GPIO Verification**: Orange Pi One uses Allwinner H3 chip. The BCM-style pin numbers in the code may not directly correspond to physical pins. Cross-reference with your board's GPIO documentation to ensure correct connections.
+**VERIFICATION STEPS**:
+- Update the pin numbers in server.py (lines with gpiozero.Button() and gpiozero.OutputDevice())
+- Test GPIO access: `python3 -c "import gpiozero; print('GPIO working')"`
+- Check /sys/class/gpio/ directory for available GPIO pins
+
+### Step 5.5: GPIO Pin Number Configuration
+After identifying your GPIO pins, update the server.py file:
+
+1. Edit the server configuration:
+   ```
+   nano /root/project_centralize/server.py
+   ```
+
+2. Find these lines (around line 10-12):
+   ```python
+   coin_pin = gpiozero.Button(3)  # Coin sensor - UPDATE THIS NUMBER
+   relay_pin = gpiozero.OutputDevice(5, active_high=False)  # Relay - UPDATE THIS NUMBER
+   ```
+
+3. Replace the numbers (3 and 5) with your actual GPIO pin numbers from the pinout diagram
+
+4. Save and exit: Ctrl+X, Y, Enter
+
+**Example**: If your coin sensor should connect to physical pin 12 (GPIO PA12), and relay to physical pin 16 (GPIO PA16), change the code to:
+```python
+coin_pin = gpiozero.Button(12)
+relay_pin = gpiozero.OutputDevice(16, active_high=False)
+```
 
 ### Step 6: Configure and Start the Service
 1. Copy the systemd service file:

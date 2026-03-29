@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import gpiozero
+import gpiozero.pins.native
 import sqlite3
 import threading
 import time
@@ -8,11 +9,15 @@ import psutil
 import os
 import subprocess
 
+# Use native GPIO backend for Orange Pi One compatibility
+gpiozero.Device.pin_factory = gpiozero.pins.native.NativeFactory()
+
 # GPIO setup for Orange Pi One
-# Note: Pin numbers use BCM-style numbering compatible with Orange Pi One
-# Verify pin mappings with your specific Orange Pi One GPIO layout
-coin_pin = gpiozero.Button(3)  # Coin sensor on GPIO pin 3
-relay_pin = gpiozero.OutputDevice(5, active_high=False)  # Relay on GPIO pin 5, active low
+# IMPORTANT: Pin numbers need to be verified for your Orange Pi One board
+# These are BCM-style references - check your board's GPIO mapping
+# Orange Pi One uses Allwinner H3 chip - GPIO numbering may differ
+coin_pin = gpiozero.Button(3)  # Coin sensor - verify actual GPIO number
+relay_pin = gpiozero.OutputDevice(5, active_high=False)  # Relay - verify actual GPIO number
 
 # Database setup
 conn = sqlite3.connect('pisonet.db', check_same_thread=False)
