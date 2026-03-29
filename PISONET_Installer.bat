@@ -93,7 +93,7 @@ run_cmd "apt install curl wget git -y"
 
 # Step 2: Install Python and dependencies
 log "Step 2: Installing Python and system dependencies..."
-run_cmd "apt install python3 python3-pip python3.13-venv python3-gpiozero -y"
+run_cmd "apt install python3 python3-pip python3.13-venv python3-dev gcc python3-gpiozero -y"
 
 # Step 3: Clone or update project
 if [ -d "/root/project_centralize" ]; then
