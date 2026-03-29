@@ -29,10 +29,12 @@ This project provides a centralized coin-operated internet cafe (PISONET) manage
 - Administrative privileges for installation
 
 ### Hardware Components
-- Coin sensor (connected to GPIO pin 3)
-- Relay module (connected to GPIO pin 5)
+- Coin sensor (connected to GPIO pin 3 - verify Orange Pi One pin mapping)
+- Relay module (connected to GPIO pin 5 - verify Orange Pi One pin mapping)
 - Ethernet cable for networking
 - Power supply for Orange Pi One
+
+**Important GPIO Note**: This system uses gpiozero library configured for Orange Pi One compatibility. The pin numbers (3 and 5) are BCM-style. Verify the actual GPIO pin mappings for your Orange Pi One board, as they may differ from Raspberry Pi. Check the pinout diagram for your specific board revision.
 
 ## Step-by-Step Server Installation on Orange Pi One
 
@@ -93,20 +95,22 @@ This project provides a centralized coin-operated internet cafe (PISONET) manage
    ```
 
 ### Step 5: Hardware Wiring
-**IMPORTANT: Disconnect power before wiring!**
+**IMPORTANT: Disconnect power before wiring! Verify pin mappings for your Orange Pi One board.**
 
-1. Locate GPIO pins on your Orange Pi One (refer to pinout diagram)
-2. Connect coin sensor:
-   - Coin sensor signal wire → GPIO pin 3 (BCM numbering)
+1. Locate GPIO pins on your Orange Pi One (refer to official pinout diagram for your board revision)
+2. **Coin Sensor Connection**:
+   - Coin sensor signal wire → GPIO pin 3 (BCM-style numbering, verify actual pin)
    - Coin sensor ground → Orange Pi ground pin
-   - Coin sensor power → 3.3V or 5V pin (check sensor specs)
-3. Connect relay module:
-   - Relay control wire → GPIO pin 5 (BCM numbering)
+   - Coin sensor power → 3.3V or 5V pin (check sensor specifications)
+3. **Relay Module Connection**:
+   - Relay control wire → GPIO pin 5 (BCM-style numbering, verify actual pin)
    - Relay ground → Orange Pi ground pin
-   - Relay power → 3.3V or 5V pin (check relay specs)
-4. Connect coin acceptor power through the relay:
+   - Relay power → 3.3V or 5V pin (check relay specifications)
+4. **Coin Acceptor Power Control**:
    - Coin acceptor power input → Normally Open (NO) contacts of relay
    - Power source → Common (COM) contact of relay
+
+**GPIO Verification**: Orange Pi One uses Allwinner H3 chip. The BCM-style pin numbers in the code may not directly correspond to physical pins. Cross-reference with your board's GPIO documentation to ensure correct connections.
 
 ### Step 6: Configure and Start the Service
 1. Copy the systemd service file:

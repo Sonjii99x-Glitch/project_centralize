@@ -1,5 +1,5 @@
 flask
-gpiozero
+gpiozero[lgpio]
 requests
 keyboard
 psutil
